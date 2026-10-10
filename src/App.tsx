@@ -97,9 +97,10 @@ export default function App() {
         body: JSON.stringify({ messages: [...saved.messages.filter(m => m.id !== 'welcome').slice(-12), userMessage].map(m => ({ role: m.role, content: m.text })), webSearch }),
       })
       if (!response.ok) throw new Error('AI endpoint is not configured yet')
-      const data = await response.json() as { reply?: string; message?: string }
+      const data = await response.json() as { reply?: string; message?: string; sources?: { title?: string; uri: string }[] }
       if (!data.reply) throw new Error(data.message || 'The AI did not return a reply')
-      setSaved(current => ({ ...current, messages: [...current.messages, { id: uid(), role: 'assistant', text: data.reply!, time: Date.now() }] }))
+      const sourceText = data.sources?.length ? '\n\nSources:\n' + data.sources.map((source, i) => (i + 1) + '. ' + (source.title || source.uri) + ' — ' + source.uri).join('\n') : ''
+      setSaved(current => ({ ...current, messages: [...current.messages, { id: uid(), role: 'assistant', text: data.reply! + sourceText, time: Date.now() }] }))
     } catch {
       setSaved(current => ({ ...current, messages: [...current.messages, { id: uid(), role: 'assistant', text: "I couldn't reach Gemini just now. Check your connection and the server-side Gemini configuration, then try again. Your chats and notes stay saved on this device.", time: Date.now() }] }))
     } finally { setBusy(false) }
