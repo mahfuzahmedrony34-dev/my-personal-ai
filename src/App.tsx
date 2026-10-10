@@ -55,7 +55,7 @@ function MessageContent({ text }: { text: string }) {
 
 export default function App() {
   const [chats, setChats] = useState<Chat[]>(loadChats)
-  const [activeId, setActiveId] = useState(() => loadChats()[0]?.id ?? '')
+  const [activeId, setActiveId] = useState('')
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
@@ -84,6 +84,7 @@ export default function App() {
   useEffect(() => {
     const savedId = localStorage.getItem('orbit-active-chat-v1')
     if (savedId && chats.some(chat => chat.id === savedId)) setActiveId(savedId)
+    else if (chats[0]) setActiveId(chats[0].id)
   // Restore the last-opened conversation once on mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -108,7 +109,7 @@ export default function App() {
     const text = draft.trim()
     if (!text || busy || !activeChat) return
     const userMessage: Message = { id: uid(), role: 'user', text, time: Date.now() }
-    const history = [...activeChat.messages.filter(m => !m.id.startsWith('welcome-')), userMessage]
+    const history = activeChat.messages.filter(m => !m.id.startsWith('welcome-'))
     const updatedTitle = activeChat.title === 'New chat' ? titleFrom(text) : activeChat.title
     setChats(current => current.map(chat => chat.id === activeId ? { ...chat, title: updatedTitle, messages: [...chat.messages, userMessage], updatedAt: Date.now() } : chat))
     setDraft(''); setBusy(true); setAttachOpen(false)
@@ -117,7 +118,7 @@ export default function App() {
       setBusy(false); return
     }
     try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [...history.slice(-12), userMessage].map(m => ({ role: m.role, content: m.text })), webSearch }) })
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [...history.slice(-11), userMessage].map(m => ({ role: m.role, content: m.text })), webSearch }) })
       const data = await response.json() as { reply?: string; message?: string; sources?: { title?: string; uri: string }[] }
       if (!response.ok || !data.reply) throw new Error(data.message || 'The AI did not return a reply')
       const sourceText = data.sources?.length ? '\n\n**Sources**\n' + data.sources.map((source, i) => (i + 1) + '. [' + (source.title || source.uri) + '](' + source.uri + ')').join('\n') : ''
